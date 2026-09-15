@@ -1,0 +1,9 @@
+{
+  "name": "Аудит по пищевой безопасности",
+  "short_name": "Аудит",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f3f5f7",
+  "theme_color": "#1769e0",
+  "icons": []
+}
