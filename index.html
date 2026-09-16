@@ -5492,7 +5492,7 @@ function v2LoadActiveAudit() {
         }
         var lastErr=null,ok=false;
         for(var attempt=1;attempt<=3 && !ok;attempt++){
-          try{await v28Post(url,{action:'uploadPhotoBatch',version:V28_UPLOAD_VERSION,auditId:snapshot.auditId,objectName:snapshot.objectName,auditDate:snapshot.auditDate,photos:photos});ok=true;}
+          try{await v28Post(url,{action:'uploadPhotoBatch',version:V28_UPLOAD_VERSION,auditId:snapshot.auditId,objectName:snapshot.objectName,auditDate:snapshot.auditDate,storageMode:snapshot.storageMode||'SECOND_ACCOUNT',photos:photos});ok=true;}
           catch(e){lastErr=e;await new Promise(function(r){setTimeout(r,800*attempt);});}
         }
         if(!ok)throw lastErr||new Error('Не удалось выгрузить пакет фотографий '+(start+1)+'–'+Math.min(start+V28_BATCH_SIZE,total)+'.');
