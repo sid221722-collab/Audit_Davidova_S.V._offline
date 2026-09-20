@@ -85,8 +85,8 @@ const CFG = {
    * Для SECOND_ACCOUNT второй аккаунт должен предоставить аккаунту Apps Script
    * доступ РЕДАКТОРА к указанной папке.
    */
-  RESULT_STORAGE_MODE: 'SECOND_ACCOUNT',
-  SECOND_RESULTS_ROOT_FOLDER_ID: '1JKvLdF_M4Cqvi5JcoVykcJql-HPBxxkt',
+  RESULT_STORAGE_MODE: 'SCRIPT_ACCOUNT',
+  SECOND_RESULTS_ROOT_FOLDER_ID: '',
 
   /* Название служебной подпапки для пакетной загрузки фотографий. */
   UPLOAD_RESULTS_FOLDER_NAME: 'Фото_аудитов_выгрузка_v2',
@@ -1786,7 +1786,6 @@ function submitAudit(
     questionMap
   );
   SpreadsheetApp.flush();
-  const reportPdf = createAuditReportPdfV2_(report.file,payload.objectName,payload.auditDate,uploadStamp,getResultsReportFolder_());
   const appendixPdf = createAuditApplicationDocx_(payload, uploadStamp);
 
   return {
@@ -1798,8 +1797,8 @@ function submitAudit(
     appendixPdfUrl: appendixPdf.url,
     reportName: report.name,
     reportUrl: report.file.getUrl(),
-    reportPdfName: reportPdf.name,
-    reportPdfUrl: reportPdf.downloadUrl
+    reportPdfName: '',
+    reportPdfUrl: ''
   };
 
 }
@@ -3447,7 +3446,7 @@ function appendAuditReportSectionV3_(body,section,fileMap){
   table.setColumnWidth(2,70);
 
   const head=table.appendTableRow();
-  ['Пункт','Заметка','Результат'].forEach(function(text,i){
+  ['Пункт','Заметка','Результат'].forEach(function(text){
     const c=head.appendTableCell(text);
     c.setBackgroundColor('#EEEEEE');
     c.setPaddingTop(2); c.setPaddingBottom(2); c.setPaddingLeft(3); c.setPaddingRight(3);
@@ -3457,55 +3456,50 @@ function appendAuditReportSectionV3_(body,section,fileMap){
 
   section.rows.forEach(function(item,rowIndex){
     const row=table.appendTableRow();
-    const pointCell=row.appendTableCell();
-    const noteCell=row.appendTableCell();
-    const resultCell=row.appendTableCell();
+    const pointCell=row.appendTableCell('');
+    const noteCell=row.appendTableCell('');
+    const resultCell=row.appendTableCell('');
 
     [pointCell,noteCell,resultCell].forEach(function(c){
       c.setPaddingTop(2); c.setPaddingBottom(2); c.setPaddingLeft(3); c.setPaddingRight(3);
       if(rowIndex % 2 === 0) c.setBackgroundColor('#F3F3F3');
     });
 
+    // Пункт
     const pp=pointCell.getChild(0).asParagraph();
-    pp.appendText(item.point||'').setFontSize(7);
     pp.setSpacingBefore(0).setSpacingAfter(0);
+    pp.appendText(item.point||'').setFontSize(7);
 
+    // Заметка: комментарий + фотографии. Никаких вложенных таблиц —
+    // это исключает ошибку DocumentApp "Индекс дочернего элемента...".
     const cp=noteCell.getChild(0).asParagraph();
     cp.setSpacingBefore(0).setSpacingAfter(0);
     if(item.comment){
       cp.appendText(item.comment).setFontSize(7);
     }
 
-    // Фотографии находятся именно в колонке "Заметка", как в образце.
     if(item.photos.length){
-      let grid=null;
-      for(let i=0;i<item.photos.length;i+=2){
-        grid=noteCell.appendTable();
-        grid.setBorderWidth(0);
-        grid.setColumnWidth(0,72);
-        grid.setColumnWidth(1,72);
-        const photoRow=grid.appendTableRow();
-        for(let j=0;j<2;j++){
-          const idx=i+j;
-          const cell=photoRow.appendTableCell();
-          cell.setPaddingTop(1); cell.setPaddingBottom(1); cell.setPaddingLeft(1); cell.setPaddingRight(1);
-          if(idx>=item.photos.length) continue;
-          try{
-            const ref=fileMap[String(item.photos[idx].photoId)];
-            const f=DriveApp.getFileById(ref.id);
-            const img=cell.appendImage(f.getBlob());
-            let w=img.getWidth(), h=img.getHeight();
-            const maxW=70, maxH=70;
-            if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
-            if(h>maxH){w=Math.round(w*maxH/h);h=maxH;}
-            img.setWidth(w); img.setHeight(h);
-          }catch(e){
-            cell.appendParagraph('Фото: ошибка').setFontSize(5).setForegroundColor('#C5221F');
-          }
+      const photoParagraph=noteCell.appendParagraph('');
+      photoParagraph.setSpacingBefore(1).setSpacingAfter(0);
+      item.photos.forEach(function(photo,photoIndex){
+        try{
+          const ref=fileMap[String(photo.photoId)];
+          if(!ref) return;
+          const f=DriveApp.getFileById(ref.id);
+          const img=photoParagraph.appendInlineImage(f.getBlob());
+          let w=img.getWidth(), h=img.getHeight();
+          const maxW=68, maxH=68;
+          if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+          if(h>maxH){w=Math.round(w*maxH/h);h=maxH;}
+          img.setWidth(w); img.setHeight(h);
+          if(photoIndex < item.photos.length-1) photoParagraph.appendText('   ').setFontSize(4);
+        }catch(e){
+          photoParagraph.appendText('[фото: ошибка]').setFontSize(5).setForegroundColor('#C5221F');
         }
-      }
+      });
     }
 
+    // Результат
     const rp=resultCell.getChild(0).asParagraph();
     rp.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
     rp.setSpacingBefore(0).setSpacingAfter(0);
