@@ -3228,53 +3228,274 @@ function getAuditAppendixStatusV2(auditId){
 }
 
 function createAuditApplicationPdfFromDriveV2_(payload,fileMap,uploadStamp,auditId){
+  /*
+   * Формат приложения приведён к образцу пользователя:
+   * A4 portrait, титульный блок с реквизитами, затем разделы.
+   * В каждом разделе: название + процент, ответственный,
+   * таблица "Пункт / Заметка / Результат".
+   * Фотографии находятся в колонке "Заметка".
+   */
   const objectName=String(payload.objectName||'объект').trim()||'объект';
   const safeObjectName=sanitizeFileName_(objectName);
   const auditDate=sanitizeFileName_(payload.auditDate||Utilities.formatDate(new Date(),Session.getScriptTimeZone(),'yyyy-MM-dd'));
   const stamp=sanitizeFileName_(uploadStamp||Utilities.formatDate(new Date(),Session.getScriptTimeZone(),'yyyy-MM-dd_HH-mm-ss-SSS'));
   const docName='Приложение_'+safeObjectName+'_'+auditDate+'_'+stamp;
-  const results=[]; let answered=0,negativeCount=0,skippedSections=0,totalPhotos=0;
+
+  const checklistName = String(
+    (payload.appData && (payload.appData.title || payload.appData.checklistTitle)) ||
+    'Аудит'
+  ).trim() || 'Аудит';
+  const checkerName = String(
+    payload.checkerName || payload.auditorName || payload.inspectorName || ''
+  ).trim();
+  const startedAt = String(
+    payload.startedAt || payload.auditStartedAt || ''
+  ).trim();
+  const finishedAt = String(
+    payload.finishedAt || payload.auditFinishedAt || ''
+  ).trim();
+
+  const sections=[];
+  let totalAnswered=0;
+  let totalPhotos=0;
+  let totalScore=0;
+  let totalPossible=0;
+
   (payload.sections||[]).forEach(function(section){
-    if(section.skipped){skippedSections++;return;}
-    (section.questions||[]).forEach(function(item){
-      const answer=String(item.answer||'').trim(); if(!answer)return;
-      const negative=CFG.NEGATIVE_ANSWERS.indexOf(answer)>=0;
-      const photos=(item.photos||[]).filter(function(p){return p&&p.photoId&&fileMap[String(p.photoId)];}).slice(0,CFG.MAX_PHOTOS);
-      const comment=String(item.comment||'').trim();
-      answered++; if(negative)negativeCount++; totalPhotos+=photos.length;
-      results.push({section:String(section.name||''),responsible:String(section.responsible||''),point:String(item.point||''),answer:answer,comment:comment,photos:photos,negative:negative});
+    if(section && section.skipped) return;
+    const rows=[];
+    let sectionScore=0;
+    let sectionPossible=0;
+
+    (section.items || section.questions || []).forEach(function(item){
+      const answer=String(item.answer||'').trim();
+      if(!answer) return;
+
+      const qId=String(item.id||'').trim();
+      const appItems=(payload.appData && Array.isArray(payload.appData.sections)) ? payload.appData.sections : [];
+      let weight=0;
+      for(let si=0;si<appItems.length;si++){
+        const its=appItems[si].items||[];
+        for(let qi=0;qi<its.length;qi++){
+          if(String(its[qi].id||'').trim()===qId){
+            weight=Number(String(its[qi].weight==null?'':its[qi].weight).replace(',','.'))||0;
+            si=appItems.length; break;
+          }
+        }
+      }
+
+      if(answer!=='Пропущено'){
+        sectionPossible += weight;
+        if(answer==='Да') sectionScore += weight;
+        else if(answer==='Незначительные недочёты') sectionScore += 60;
+        else if(answer==='Значительные нарушения') sectionScore += 30;
+      }
+
+      const photos=(item.photos||[]).filter(function(photo){
+        return photo && photo.photoId && fileMap[String(photo.photoId)];
+      }).slice(0,CFG.MAX_PHOTOS);
+
+      totalAnswered++;
+      totalPhotos += photos.length;
+      rows.push({
+        point:String(item.point||''),
+        comment:String(item.comment||''),
+        answer:answer,
+        photos:photos
+      });
+    });
+
+    const percent=sectionPossible ? (sectionScore/sectionPossible*100) : 0;
+    totalScore += sectionScore;
+    totalPossible += sectionPossible;
+    sections.push({
+      name:String(section.name||''),
+      responsible:String(section.responsible||'').trim(),
+      rows:rows,
+      percent:percent
     });
   });
+
+  const overallPercent=totalPossible ? (totalScore/totalPossible*100) : 0;
+
   const doc=DocumentApp.create(docName);
-  const body=doc.getBody(); body.clear();
-  body.setPageWidth(595.28); body.setPageHeight(841.89);
-  body.setMarginTop(24); body.setMarginBottom(24); body.setMarginLeft(26); body.setMarginRight(26);
-  const t=body.appendParagraph('ПРИЛОЖЕНИЕ К ОТЧЁТУ'); t.setAlignment(DocumentApp.HorizontalAlignment.CENTER); t.setHeading(DocumentApp.ParagraphHeading.NORMAL); t.setFontSize(18).setBold(false).setSpacingAfter(1);
-  const s=body.appendParagraph('Результаты аудита'); s.setAlignment(DocumentApp.HorizontalAlignment.CENTER); s.setBold(false).setFontSize(12).setSpacingAfter(6);
-  const info=body.appendTable([['Объект',objectName,'Дата аудита',String(payload.auditDate||'')],['Пунктов с ответами',String(answered),'Пунктов с недостатками',String(negativeCount)],['Фотографий',String(totalPhotos),'Пропущенных разделов',String(skippedSections)]]); info.setBorderWidth(1);
-  for(let r=0;r<3;r++){
-    const c0=info.getCell(r,0); const c2=info.getCell(r,2);
-    c0.setBackgroundColor('#E8EEF7'); c2.setBackgroundColor('#E8EEF7');
-    c0.getChild(0).asParagraph().editAsText().setBold(false);
-    c2.getChild(0).asParagraph().editAsText().setBold(false);
+  const body=doc.getBody();
+  body.clear();
+  body.setPageWidth(595.28);  // A4 portrait
+  body.setPageHeight(841.89);
+  body.setMarginTop(28);
+  body.setMarginBottom(24);
+  body.setMarginLeft(28);
+  body.setMarginRight(28);
+
+  // ===== Верхняя часть как в образце =====
+  const title=body.appendParagraph('Результаты чек-листа');
+  title.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+  title.setBold(true).setFontSize(14).setSpacingBefore(0).setSpacingAfter(7);
+
+  const meta=body.appendTable([
+    ['Название чек-листа:', checklistName],
+    ['Имя проверяющего:', checkerName],
+    ['Проверяемый объект:', objectName],
+    ['Время начала чек-листа:', formatReportDateTime_(startedAt)],
+    ['Время завершения чек-листа:', formatReportDateTime_(finishedAt || uploadStamp)]
+  ]);
+  meta.setBorderWidth(0);
+  meta.setColumnWidth(0,175);
+  meta.setColumnWidth(1,335);
+  for(let r=0;r<5;r++){
+    const a=meta.getCell(r,0).getChild(0).asParagraph();
+    const b=meta.getCell(r,1).getChild(0).asParagraph();
+    a.setFontSize(8).setBold(true).setSpacingBefore(0).setSpacingAfter(1);
+    b.setFontSize(8).setSpacingBefore(0).setSpacingAfter(1);
   }
-  body.appendParagraph('').setSpacingAfter(2); body.appendParagraph('РЕЗУЛЬТАТЫ ПРОВЕРКИ').setHeading(DocumentApp.ParagraphHeading.NORMAL).setFontSize(14).setBold(false).setSpacingAfter(4);
-  results.forEach(function(item,index){
-    if(auditId)PropertiesService.getScriptProperties().setProperty('AUDIT_APPENDIX_V2_'+auditId,JSON.stringify({status:'processing',stage:'pdf',current:index,total:results.length,auditId:auditId,updatedAt:new Date().toISOString()}));
-    appendAuditResultBlockFromDriveV2_(body,item,index+1,fileMap);
-    if(auditId)PropertiesService.getScriptProperties().setProperty('AUDIT_APPENDIX_V2_'+auditId,JSON.stringify({status:'processing',stage:'pdf',current:index+1,total:results.length,auditId:auditId,updatedAt:new Date().toISOString()}));
+
+  body.appendParagraph('').setSpacingBefore(0).setSpacingAfter(1);
+  const resultTitle=body.appendParagraph('Результаты чек-листа');
+  resultTitle.setBold(true).setFontSize(10).setSpacingBefore(0).setSpacingAfter(3);
+
+  sections.forEach(function(section){
+    appendAuditReportSectionV3_(body,section,fileMap);
   });
-  doc.saveAndClose(); SpreadsheetApp.flush();
+
+  const final=body.appendParagraph('Чек-лист пройден на '+formatPercentRu_(overallPercent));
+  final.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+  final.setBold(true).setFontSize(9).setSpacingBefore(5).setSpacingAfter(0);
+
+  doc.saveAndClose();
+
   const source=DriveApp.getFileById(doc.getId());
   const folder=getUploadSessionFolderV2_(auditId,objectName,auditDate,payload.storageMode);
-  const pdfName=docName+'.pdf'; const pdfBlob=source.getAs(MimeType.PDF).setName(pdfName); const file=folder.createFile(pdfBlob);
+  const pdfName=docName+'.pdf';
+  const pdfBlob=source.getAs(MimeType.PDF).setName(pdfName);
+  const file=folder.createFile(pdfBlob);
+
   const packageBlobs=[file.getBlob()];
   const reportPdfFiles=folder.getFilesByName('Отчёт_по_аудиту_'+safeObjectName+'_'+auditDate+'_'+stamp+'.pdf');
   if(reportPdfFiles.hasNext()) packageBlobs.unshift(reportPdfFiles.next().getBlob());
   const packageName='Аудит_'+safeObjectName+'_'+auditDate+'_'+stamp+'.zip';
   const packageFile=folder.createFile(Utilities.zip(packageBlobs,packageName));
+
   try{source.setTrashed(true);}catch(e){}
-  return {name:file.getName(),url:file.getUrl(),downloadUrl:makeDriveDownloadUrlV2_(file.getId()),id:file.getId(),items:results.length,negativeItems:negativeCount,photos:totalPhotos,folderUrl:folder.getUrl(),packageName:packageFile.getName(),packageUrl:makeDriveDownloadUrlV2_(packageFile.getId())};
+
+  return {
+    name:file.getName(),
+    url:file.getUrl(),
+    downloadUrl:makeDriveDownloadUrlV2_(file.getId()),
+    id:file.getId(),
+    items:totalAnswered,
+    negativeItems:0,
+    photos:totalPhotos,
+    folderUrl:folder.getUrl(),
+    packageName:packageFile.getName(),
+    packageUrl:makeDriveDownloadUrlV2_(packageFile.getId())
+  };
+}
+
+function formatReportDateTime_(value){
+  const s=String(value||'').trim();
+  if(!s) return '';
+  const d=new Date(s);
+  if(!isNaN(d.getTime())){
+    return Utilities.formatDate(d,Session.getScriptTimeZone(),'d MMMM yyyy г. HH:mm');
+  }
+  return s;
+}
+
+function formatPercentRu_(value){
+  const n=Number(value)||0;
+  let text=n.toFixed(2).replace('.',',');
+  text=text.replace(/,00$/,'').replace(/(,\d)0$/,'$1');
+  return text+'%';
+}
+
+function appendAuditReportSectionV3_(body,section,fileMap){
+  const header=body.appendParagraph(
+    String(section.name||'Раздел')+' ( '+formatPercentRu_(section.percent)+' )'
+  );
+  header.setBold(true).setFontSize(10).setSpacingBefore(4).setSpacingAfter(1);
+
+  const resp=body.appendParagraph('Проверяемый сотрудник: '+(section.responsible||'Не указан'));
+  resp.setFontSize(7).setSpacingBefore(0).setSpacingAfter(2);
+
+  const table=body.appendTable();
+  table.setBorderWidth(0.5);
+  table.setColumnWidth(0,290);
+  table.setColumnWidth(1,150);
+  table.setColumnWidth(2,70);
+
+  const head=table.appendTableRow();
+  ['Пункт','Заметка','Результат'].forEach(function(text,i){
+    const c=head.appendTableCell(text);
+    c.setBackgroundColor('#EEEEEE');
+    c.setPaddingTop(2); c.setPaddingBottom(2); c.setPaddingLeft(3); c.setPaddingRight(3);
+    const p=c.getChild(0).asParagraph();
+    p.setFontSize(7).setBold(true).setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+  });
+
+  section.rows.forEach(function(item,rowIndex){
+    const row=table.appendTableRow();
+    const pointCell=row.appendTableCell();
+    const noteCell=row.appendTableCell();
+    const resultCell=row.appendTableCell();
+
+    [pointCell,noteCell,resultCell].forEach(function(c){
+      c.setPaddingTop(2); c.setPaddingBottom(2); c.setPaddingLeft(3); c.setPaddingRight(3);
+      if(rowIndex % 2 === 0) c.setBackgroundColor('#F3F3F3');
+    });
+
+    const pp=pointCell.getChild(0).asParagraph();
+    pp.appendText(item.point||'').setFontSize(7);
+    pp.setSpacingBefore(0).setSpacingAfter(0);
+
+    const cp=noteCell.getChild(0).asParagraph();
+    cp.setSpacingBefore(0).setSpacingAfter(0);
+    if(item.comment){
+      cp.appendText(item.comment).setFontSize(7);
+    }
+
+    // Фотографии находятся именно в колонке "Заметка", как в образце.
+    if(item.photos.length){
+      let grid=null;
+      for(let i=0;i<item.photos.length;i+=2){
+        grid=noteCell.appendTable();
+        grid.setBorderWidth(0);
+        grid.setColumnWidth(0,72);
+        grid.setColumnWidth(1,72);
+        const photoRow=grid.appendTableRow();
+        for(let j=0;j<2;j++){
+          const idx=i+j;
+          const cell=photoRow.appendTableCell();
+          cell.setPaddingTop(1); cell.setPaddingBottom(1); cell.setPaddingLeft(1); cell.setPaddingRight(1);
+          if(idx>=item.photos.length) continue;
+          try{
+            const ref=fileMap[String(item.photos[idx].photoId)];
+            const f=DriveApp.getFileById(ref.id);
+            const img=cell.appendImage(f.getBlob());
+            let w=img.getWidth(), h=img.getHeight();
+            const maxW=70, maxH=70;
+            if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+            if(h>maxH){w=Math.round(w*maxH/h);h=maxH;}
+            img.setWidth(w); img.setHeight(h);
+          }catch(e){
+            cell.appendParagraph('Фото: ошибка').setFontSize(5).setForegroundColor('#C5221F');
+          }
+        }
+      }
+    }
+
+    const rp=resultCell.getChild(0).asParagraph();
+    rp.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+    rp.setSpacingBefore(0).setSpacingAfter(0);
+    rp.appendText(item.answer||'').setFontSize(7).setBold(false);
+    if(item.answer==='Да') rp.setForegroundColor('#34A853');
+    else if(item.answer==='Нет') rp.setForegroundColor('#EA4335');
+    else if(item.answer==='Пропущено') rp.setForegroundColor('#4EA3D8');
+    else if(item.answer==='Значительные нарушения') rp.setForegroundColor('#EA4335');
+    else if(item.answer==='Незначительные недочёты') rp.setForegroundColor('#F29900');
+  });
+
+  body.appendParagraph('').setSpacingBefore(0).setSpacingAfter(1);
 }
 
 function makeSpreadsheetXlsxDownloadUrlV2_(spreadsheetId){

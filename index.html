@@ -4728,8 +4728,14 @@ if ('serviceWorker' in navigator) {
     return id;
   }
 
+  const V2_STARTED_KEY = 'audit_v2_started_at_v1';
+
   function v2SetActive(auditId) {
     try { localStorage.setItem(V2_ACTIVE_KEY, auditId || ''); } catch(e) {}
+  }
+
+  function v2GetStartedAt() {
+    try { return localStorage.getItem(V2_STARTED_KEY) || ''; } catch(e) { return ''; }
   }
 
   function v2SafePart(value) {
@@ -4826,12 +4832,14 @@ if ('serviceWorker' in navigator) {
     return {
       schema: V2_SCHEMA,
       auditId: auditId,
+      startedAt: v2GetStartedAt(),
       folderName: v2FolderName(objectName, auditDate),
       objectName: String(objectName).trim(),
       auditDate: String(auditDate).trim(),
       storageMode: storageMode,
       savedAt: new Date().toISOString(),
       appData: APP_DATA || null,
+      checkerName: String((window.AUDIT_PWA_CONFIG && window.AUDIT_PWA_CONFIG.CHECKER_NAME) || '').trim(),
       sections: sections
     };
   }
@@ -5058,7 +5066,10 @@ if ('serviceWorker' in navigator) {
     }
     const newId = v2MakeAuditId();
     v2SetActive(newId);
-    try { localStorage.removeItem(V2_META_KEY); } catch(e) {}
+    try {
+      localStorage.removeItem(V2_META_KEY);
+      localStorage.setItem(V2_STARTED_KEY, new Date().toISOString());
+    } catch(e) {}
     return newId;
   }
 
