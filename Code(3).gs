@@ -3360,10 +3360,10 @@ function createAuditApplicationPdfFromDriveV2_(payload,fileMap,uploadStamp,audit
 
   const meta=body.appendTable([
     ['Название чек-листа:', checklistName],
-    ['Имя проверяющего:', checkerName],
-    ['Проверяемый объект:', objectName],
-    ['Время начала чек-листа:', formatReportDateTime_(startedAt)],
-    ['Время завершения чек-листа:', formatReportDateTime_(finishedAt || uploadStamp)]
+    ['Имя проверяющего:', checkerName || ' '],
+    ['Проверяемый объект:', objectName || ' '],
+    ['Время начала чек-листа:', formatReportDateTime_(startedAt) || ' '],
+    ['Время завершения чек-листа:', formatReportDateTime_(finishedAt || uploadStamp) || ' ']
   ]);
   meta.setBorderWidth(0);
   meta.setColumnWidth(0,175);
@@ -3456,9 +3456,9 @@ function appendAuditReportSectionV3_(body,section,fileMap){
 
   section.rows.forEach(function(item,rowIndex){
     const row=table.appendTableRow();
-    const pointCell=row.appendTableCell('');
-    const noteCell=row.appendTableCell('');
-    const resultCell=row.appendTableCell('');
+    const pointCell=row.appendTableCell(' ');
+    const noteCell=row.appendTableCell(' ');
+    const resultCell=row.appendTableCell(' ');
 
     [pointCell,noteCell,resultCell].forEach(function(c){
       c.setPaddingTop(2); c.setPaddingBottom(2); c.setPaddingLeft(3); c.setPaddingRight(3);
@@ -3467,16 +3467,16 @@ function appendAuditReportSectionV3_(body,section,fileMap){
 
     // Пункт
     const pp=pointCell.getChild(0).asParagraph();
+    pp.setText(String(item.point||' '));
     pp.setSpacingBefore(0).setSpacingAfter(0);
-    pp.appendText(item.point||'').setFontSize(7);
+    pp.setFontSize(7);
 
-    // Заметка: комментарий + фотографии. Никаких вложенных таблиц —
-    // это исключает ошибку DocumentApp "Индекс дочернего элемента...".
+    // Заметка: комментарий + фотографии. Ячейка всегда получает
+    // начальный пробел, поэтому getChild(0) безопасен даже при пустом комментарии.
     const cp=noteCell.getChild(0).asParagraph();
+    cp.setText(String(item.comment||' '));
     cp.setSpacingBefore(0).setSpacingAfter(0);
-    if(item.comment){
-      cp.appendText(item.comment).setFontSize(7);
-    }
+    cp.setFontSize(7);
 
     if(item.photos.length){
       const photoParagraph=noteCell.appendParagraph('');
@@ -3501,9 +3501,10 @@ function appendAuditReportSectionV3_(body,section,fileMap){
 
     // Результат
     const rp=resultCell.getChild(0).asParagraph();
+    rp.setText(String(item.answer||' '));
     rp.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
     rp.setSpacingBefore(0).setSpacingAfter(0);
-    rp.appendText(item.answer||'').setFontSize(7).setBold(false);
+    rp.setFontSize(7).setBold(false);
     if(item.answer==='Да') rp.setForegroundColor('#34A853');
     else if(item.answer==='Нет') rp.setForegroundColor('#EA4335');
     else if(item.answer==='Пропущено') rp.setForegroundColor('#4EA3D8');
