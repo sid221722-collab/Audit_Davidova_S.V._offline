@@ -5372,6 +5372,9 @@ function v2LoadActiveAudit() {
       objectName: snapshot.objectName,
       auditDate: snapshot.auditDate,
       storageMode: snapshot.storageMode || 'SECOND_ACCOUNT',
+      startedAt: snapshot.startedAt || '',
+      finishedAt: new Date().toISOString(),
+      checkerName: snapshot.checkerName || '',
       expectedPhotos: v2CollectAllPhotoMeta(snapshot),
       appData: snapshot.appData || null,
       sections: snapshot.sections
@@ -5412,6 +5415,7 @@ function v2LoadActiveAudit() {
               auditId:snapshot.auditId,
               objectName:snapshot.objectName,
               auditDate:snapshot.auditDate,
+              startedAt:snapshot.startedAt || '',
               photoId:meta.photoId,
               sectionIndex:meta.sectionIndex,
               questionId:meta.questionId,
@@ -5503,7 +5507,7 @@ function v2LoadActiveAudit() {
         }
         var lastErr=null,ok=false;
         for(var attempt=1;attempt<=3 && !ok;attempt++){
-          try{await v28Post(url,{action:'uploadPhotoBatch',version:V28_UPLOAD_VERSION,auditId:snapshot.auditId,objectName:snapshot.objectName,auditDate:snapshot.auditDate,storageMode:snapshot.storageMode||'SECOND_ACCOUNT',photos:photos});ok=true;}
+          try{await v28Post(url,{action:'uploadPhotoBatch',version:V28_UPLOAD_VERSION,auditId:snapshot.auditId,objectName:snapshot.objectName,auditDate:snapshot.auditDate,storageMode:snapshot.storageMode||'SECOND_ACCOUNT',startedAt:snapshot.startedAt||'',photos:photos});ok=true;}
           catch(e){lastErr=e;await new Promise(function(r){setTimeout(r,800*attempt);});}
         }
         if(!ok)throw lastErr||new Error('Не удалось выгрузить пакет фотографий '+(start+1)+'–'+Math.min(start+V28_BATCH_SIZE,total)+'.');
@@ -5512,7 +5516,7 @@ function v2LoadActiveAudit() {
         await new Promise(function(r){setTimeout(r,120);});
       }
       showLoading(true,total?'Сохранение проверки...\nШАГ 2 из 3 — фотографии загружены: '+total+' / '+total+'. Формируем отчёт...':'Сохранение проверки...\nШАГ 2 из 3 — формируем отчёт...');
-      var payload={action:'uploadFinalize',version:V28_UPLOAD_VERSION,auditId:snapshot.auditId,objectName:snapshot.objectName,auditDate:snapshot.auditDate,storageMode:snapshot.storageMode||'SECOND_ACCOUNT',appData:snapshot.appData||null,expectedPhotos:metas,sections:snapshot.sections};
+      var payload={action:'uploadFinalize',version:V28_UPLOAD_VERSION,auditId:snapshot.auditId,objectName:snapshot.objectName,auditDate:snapshot.auditDate,storageMode:snapshot.storageMode||'SECOND_ACCOUNT',startedAt:snapshot.startedAt||'',finishedAt:new Date().toISOString(),checkerName:snapshot.checkerName||'',appData:snapshot.appData||null,expectedPhotos:metas,sections:snapshot.sections};
       var form=document.createElement('form');form.method='POST';form.action=url;form.target='_self';form.style.display='none';
       var input=document.createElement('textarea');input.name='payload';input.value=JSON.stringify(payload);form.appendChild(input);document.body.appendChild(form);form.submit();
     }catch(error){showLoading(false);if(button)button.disabled=false;alert('Ошибка выгрузки:\n\n'+getErrorMessage(error)+'\n\nАудит и фотографии остались сохранены на устройстве.');}

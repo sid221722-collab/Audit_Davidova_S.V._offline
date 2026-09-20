@@ -73,8 +73,8 @@ const CFG = {
   /*
    * Папки Google Drive.
    */
-  REPORT_FOLDER_NAME: 'Отчёты_по_аудитам',
-  PHOTO_FOLDER_NAME: 'Фото_аудитов',
+  REPORT_FOLDER_NAME: 'Отчёты по аудитам',
+  PHOTO_FOLDER_NAME: 'Фото',
 
   /*
    * Куда сохранять РЕЗУЛЬТАТЫ аудита.
@@ -1414,16 +1414,16 @@ function doPost(e) {
         '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:Arial,sans-serif;padding:28px;font-size:18px;text-align:center;line-height:1.5} .box{max-width:560px;margin:30px auto} .bar{height:14px;background:#e5e7eb;border-radius:8px;overflow:hidden;margin:18px 0}.fill{height:100%;width:8%;background:#4f46e5;transition:width .3s}.muted{color:#666;font-size:15px}</style></head>' +
         '<body><div class="box"><h2>Проверка успешно сохранена</h2>' +
         '<p><b>Отчёт создан</b></p><div class="bar"><div id="fill" class="fill"></div></div>' +
-        '<p id="status">Фотографии загружены. Формируем PDF-файлы…</p>' +
+        '<p id="status">Фотографии загружены. Формируем приложение PDF…</p>' +
         '<p class="muted" id="detail">Не закрывайте эту страницу.</p>' +
         '<p><a id="report" style="display:inline-block;padding:14px 24px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:10px" href="' + htmlEscapeV2_(result.reportXlsxUrl || result.reportUrl) + '" target="_blank">Скачать отчёт Excel</a></p>' +
-        '<p><a id="reportPdf" style="display:inline-block;padding:14px 24px;background:#0f766e;color:#fff;text-decoration:none;border-radius:10px" href="' + htmlEscapeV2_(result.reportPdfUrl || '') + '" target="_blank">Скачать отчёт PDF</a></p><p id="appWrap" style="display:none"><a id="app" style="display:inline-block;padding:14px 24px;background:#16803c;color:#fff;text-decoration:none;border-radius:10px" href="#" target="_blank">Скачать приложение PDF</a></p>' +
-        '<p id="zipWrap" style="display:none"><a id="zip" style="display:inline-block;padding:14px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px" href="#" target="_blank">Скачать пакет аудита (ZIP)</a></p>' +
+        '<p id="appWrap" style="display:none"><a id="app" style="display:inline-block;padding:14px 24px;background:#16803c;color:#fff;text-decoration:none;border-radius:10px" href="#" target="_blank">Скачать приложение PDF</a></p>' +
+        '<p id="draftWrap" style="display:none"><a id="draft" style="display:inline-block;padding:14px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px" href="#" target="_blank">Скачать черновик формы</a></p>' +
         '<p><a id="folder" style="display:inline-block;padding:14px 24px;background:#374151;color:#fff;text-decoration:none;border-radius:10px" href="' + htmlEscapeV2_(result.auditFolderUrl || '') + '" target="_blank">Открыть папку аудита на Google Диске</a></p>' +
         '<p><a style="display:inline-block;padding:14px 24px;background:#6b7280;color:#fff;text-decoration:none;border-radius:10px" href="' + url + '">Вернуться к аудиту</a></p>' +
         '</div><script>' +
         'var id="' + auditId + '";' +
-        'function poll(){google.script.run.withSuccessHandler(function(s){var f=document.getElementById("fill"),st=document.getElementById("status"),d=document.getElementById("detail");if(s.status==="processing"){var pct=s.total?Math.max(8,Math.round(s.current/s.total*92)):12;f.style.width=pct+"%";st.textContent="Формируем приложение PDF…";d.textContent="Пунктов обработано: "+s.current+" / "+s.total;setTimeout(poll,1500);}else if(s.status==="done"){f.style.width="100%";st.textContent="Готово. Отчёт и приложение PDF созданы.";d.textContent="Фотографии: ' + String(result.uploadedPhotos) + '";document.getElementById("report").href=s.reportXlsxUrl||document.getElementById("report").href;document.getElementById("reportPdf").href=s.reportPdfUrl||document.getElementById("reportPdf").href;document.getElementById("app").href=s.appendixPdfUrl;document.getElementById("zip").href=s.packageUrl||"#";document.getElementById("appWrap").style.display="block";if(s.packageUrl)document.getElementById("zipWrap").style.display="block";document.getElementById("folder").href=s.auditFolderUrl||document.getElementById("folder").href;}else if(s.status==="error"){f.style.width="100%";st.textContent="Отчёт создан, но приложение PDF не удалось сформировать.";d.textContent=s.error||"Неизвестная ошибка.";}else{setTimeout(poll,1500);}}).getAuditAppendixStatusV2(id);}poll();</script></body></html>'
+        'function poll(){google.script.run.withSuccessHandler(function(s){var f=document.getElementById("fill"),st=document.getElementById("status"),d=document.getElementById("detail");if(s.status==="processing"){var pct=s.total?Math.max(8,Math.round(s.current/s.total*92)):12;f.style.width=pct+"%";st.textContent="Формируем приложение PDF…";d.textContent="Пунктов обработано: "+s.current+" / "+s.total;setTimeout(poll,1500);}else if(s.status==="done"){f.style.width="100%";st.textContent="Готово. Excel-отчёт и приложение PDF созданы.";d.textContent="Фотографии: ' + String(result.uploadedPhotos) + '";document.getElementById("report").href=s.reportXlsxUrl||document.getElementById("report").href;document.getElementById("app").href=s.appendixPdfUrl;document.getElementById("draft").href=s.draftUrl||"#";document.getElementById("appWrap").style.display="block";document.getElementById("draftWrap").style.display="block";document.getElementById("folder").href=s.auditFolderUrl||document.getElementById("folder").href;}else if(s.status==="error"){f.style.width="100%";st.textContent="Отчёт создан, но приложение PDF не удалось сформировать.";d.textContent=s.error||"Неизвестная ошибка.";}else{setTimeout(poll,1500);}}).getAuditAppendixStatusV2(id);}poll();</script></body></html>'
       ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
 
@@ -1918,6 +1918,31 @@ function getResultsRootFolder_(storageMode) {
 function getResultsReportFolder_(storageMode) {
   const root = getResultsRootFolder_(storageMode);
   return getOrCreateSubfolder_(root, CFG.REPORT_FOLDER_NAME);
+}
+
+function getAuditFolderV3_(auditId, objectName, auditDate, storageMode, startedAt) {
+  const root = getResultsReportFolder_(storageMode);
+  let dt = startedAt ? new Date(startedAt) : null;
+  if (!dt || isNaN(dt.getTime())) dt = new Date();
+  const stamp = Utilities.formatDate(dt, Session.getScriptTimeZone(), 'dd.MM.yyyy_HH-mm-ss');
+  const base = stamp + '_' + sanitizeFileName_(objectName || 'объект');
+  const suffix = sanitizeFileName_(auditId || Utilities.getUuid()).slice(-12);
+  let folders = root.getFoldersByName(base);
+  if (folders.hasNext()) {
+    const existing = folders.next();
+    try {
+      if (String(existing.getDescription() || '') === String(auditId || '')) return existing;
+    } catch (e) {}
+    const unique = base + '_' + suffix;
+    folders = root.getFoldersByName(unique);
+    if (folders.hasNext()) return folders.next();
+    const folder = root.createFolder(unique);
+    try { folder.setDescription(String(auditId || '')); } catch (e) {}
+    return folder;
+  }
+  const folder = root.createFolder(base);
+  try { folder.setDescription(String(auditId || '')); } catch (e) {}
+  return folder;
 }
 
 function getResultsPhotoFolder_(storageMode) {
@@ -3000,11 +3025,11 @@ function getUploadRootV2_(storageMode) {
   );
 }
 
-function getUploadSessionFolderV2_(auditId, objectName, auditDate, storageMode) {
-  const root = getUploadRootV2_(storageMode);
-  const name = 'Аудит_' + sanitizeFileName_(objectName || 'объект') + '_' + sanitizeFileName_(auditDate || 'без_даты') + '_' + sanitizeFileName_(auditId || Utilities.getUuid());
-  const folders = root.getFoldersByName(name);
-  return folders.hasNext() ? folders.next() : root.createFolder(name);
+function getUploadSessionFolderV2_(auditId, objectName, auditDate, storageMode, startedAt) {
+  const auditFolder = getAuditFolderV3_(auditId, objectName, auditDate, storageMode, startedAt);
+  // Фотографии храним в отдельной подпапке внутри папки конкретного аудита,
+  // чтобы Excel, Приложение PDF и черновик всегда оставались сверху.
+  return getOrCreateSubfolder_(auditFolder, 'Фото');
 }
 
 
@@ -3014,7 +3039,7 @@ function uploadAuditPhotoBatchV2_(payload) {
   const photos=Array.isArray(payload.photos)?payload.photos:[];
   if(!photos.length) throw new Error('Не передан пакет фотографий.');
   if(photos.length>3) throw new Error('Размер пакета не должен превышать 3 фотографии.');
-  const folder=getUploadSessionFolderV2_(auditId,payload.objectName,payload.auditDate,payload.storageMode);
+  const folder=getUploadSessionFolderV2_(auditId,payload.objectName,payload.auditDate,payload.storageMode,payload.startedAt);
   const existing={};
   const files=folder.getFiles();
   while(files.hasNext()){
@@ -3045,7 +3070,7 @@ function uploadAuditPhotoV2_(payload) {
   if(!photoId) throw new Error('Не указан photoId.');
   if(!payload.data) throw new Error('Не передано содержимое фотографии.');
 
-  const folder=getUploadSessionFolderV2_(auditId,payload.objectName,payload.auditDate,payload.storageMode);
+  const folder=getUploadSessionFolderV2_(auditId,payload.objectName,payload.auditDate,payload.storageMode,payload.startedAt);
   const prefix='photo_'+sanitizeFileName_(photoId)+'_';
   const files=folder.getFiles();
   while(files.hasNext()){
@@ -3066,7 +3091,12 @@ function uploadAuditPhotoV2_(payload) {
 
 function indexUploadFilesV2_(folder) {
   const map={};
-  const files=folder.getFiles();
+  // Начиная с v4 фотографии находятся в подпапке "Фото".
+  // Оставляем fallback на саму папку для совместимости со старыми загрузками.
+  let sourceFolder = folder;
+  const photoFolders = folder.getFoldersByName('Фото');
+  if (photoFolders.hasNext()) sourceFolder = photoFolders.next();
+  const files=sourceFolder.getFiles();
   while(files.hasNext()){
     const file=files.next();
     const m=file.getName().match(/^photo_(P_[^_]+)_/);
@@ -3083,7 +3113,7 @@ function finalizeAuditUploadV2_(payload) {
   if(!auditDate) throw new Error('Укажите дату проведения.');
   if(!auditId) throw new Error('Не указан auditId.');
 
-  const folder=getUploadSessionFolderV2_(auditId,objectName,auditDate,payload.storageMode);
+  const folder=getAuditFolderV3_(auditId,objectName,auditDate,payload.storageMode,payload.startedAt);
   const fileMap=indexUploadFilesV2_(folder);
   const expected=Array.isArray(payload.expectedPhotos)?payload.expectedPhotos:[];
   const missing=expected.filter(function(p){return !p || !p.photoId || !fileMap[String(p.photoId)];});
@@ -3132,35 +3162,31 @@ function finalizeAuditUploadV2_(payload) {
   sheet.getRange(startRow,1,rows.length,9).setValues(rows);
   sheet.setFrozenRows(1); sheet.getRange(1,1,1,9).setFontWeight('bold').setWrap(true); sheet.setColumnWidth(9,320);
 
-  // Создаём основной отчёт и PDF-копию для сохранения на телефоне.
+  // Создаём только Excel-отчёт. Отдельный PDF основного отчёта больше не нужен.
   createAuditResultSheet_(report.file.getId(),payload,questionMap);
   SpreadsheetApp.flush();
-  const auditFolder=getUploadSessionFolderV2_(auditId,objectName,auditDate,payload.storageMode);
-  const reportPdf=createAuditReportPdfV2_(report.file,objectName,auditDate,uploadStamp,auditFolder);
-  // XLSX больше не преобразуем на сервере: DriveApp.getAs() не поддерживает
-  // Google Spreadsheet -> XLSX. Браузер скачивает Excel напрямую через штатный export URL.
-  const reportXlsx={
-    name: report.name + '.xlsx',
-    url: makeSpreadsheetXlsxDownloadUrlV2_(report.file.getId()),
-    downloadUrl: makeSpreadsheetXlsxDownloadUrlV2_(report.file.getId())
-  };
+  const auditFolder=getAuditFolderV3_(auditId,objectName,auditDate,payload.storageMode,payload.startedAt);
+  const reportXlsx=createAuditReportXlsxFileV3_(report.file,report.name,auditFolder);
+  const draftFile=createAuditDraftFileV3_(payload,fileMap,auditFolder,uploadStamp);
+  try { report.file.setTrashed(true); } catch (e) {}
 
   const statusKey='AUDIT_APPENDIX_V2_'+auditId;
   PropertiesService.getScriptProperties().setProperty(statusKey,JSON.stringify({
-    status:'queued',auditId:auditId,reportName:report.name,reportUrl:report.file.getUrl(),
-    reportPdfName:reportPdf.name,reportPdfUrl:reportPdf.downloadUrl,reportXlsxName:reportXlsx.name,reportXlsxUrl:reportXlsx.downloadUrl,auditFolderUrl:auditFolder.getUrl(),
+    status:'queued',auditId:auditId,reportName:reportXlsx.name,reportUrl:reportXlsx.downloadUrl,
+    reportXlsxName:reportXlsx.name,reportXlsxUrl:reportXlsx.downloadUrl,draftName:draftFile.name,draftUrl:draftFile.downloadUrl,auditFolderUrl:auditFolder.getUrl(),
     uploadedPhotos:expected.length,updatedAt:new Date().toISOString()
   }));
 
   // Сохраняем задание в staging-папке, чтобы фоновый триггер не зависел от браузера.
   const jobName='appendix_job_'+sanitizeFileName_(auditId)+'.json';
   const oldJobs=folder.getFilesByName(jobName); while(oldJobs.hasNext()) oldJobs.next().setTrashed(true);
-  folder.createFile(jobName,JSON.stringify({payload:payload,fileMap:fileMap,uploadStamp:uploadStamp,reportName:report.name,reportUrl:report.file.getUrl(),reportPdfName:reportPdf.name,reportPdfUrl:reportPdf.downloadUrl,reportXlsxName:reportXlsx.name,reportXlsxUrl:reportXlsx.downloadUrl,auditFolderUrl:auditFolder.getUrl()}),MimeType.PLAIN_TEXT);
+  folder.createFile(jobName,JSON.stringify({payload:payload,fileMap:fileMap,uploadStamp:uploadStamp,reportName:reportXlsx.name,reportUrl:reportXlsx.downloadUrl,reportXlsxName:reportXlsx.name,reportXlsxUrl:reportXlsx.downloadUrl,draftName:draftFile.name,draftUrl:draftFile.downloadUrl,auditFolderUrl:auditFolder.getUrl()}),MimeType.PLAIN_TEXT);
   // PDF-приложение формируем сразу в рамках этой же выгрузки.
   // Это убирает зависимость от time-based триггеров и лимита триггеров.
   processAuditAppendixV2_();
 
-  return {ok:true,savedRows:rows.length,reportName:report.name,reportUrl:report.file.getUrl(),reportPdfName:reportPdf.name,reportPdfUrl:reportPdf.downloadUrl,reportXlsxName:reportXlsx.name,reportXlsxUrl:reportXlsx.downloadUrl,auditFolderUrl:auditFolder.getUrl(),appendixPdfName:'',appendixPdfUrl:'',uploadedPhotos:expected.length,appendixStatus:'done',auditId:auditId};
+  const finalStatus=getAuditAppendixStatusV2(auditId);
+  return {ok:true,savedRows:rows.length,reportName:reportXlsx.name,reportUrl:reportXlsx.downloadUrl,reportXlsxName:reportXlsx.name,reportXlsxUrl:reportXlsx.downloadUrl,draftName:draftFile.name,draftUrl:draftFile.downloadUrl,auditFolderUrl:auditFolder.getUrl(),appendixPdfName:finalStatus.appendixPdfName||'',appendixPdfUrl:finalStatus.appendixPdfUrl||'',uploadedPhotos:expected.length,appendixStatus:finalStatus.status||'done',auditId:auditId};
 }
 
 
@@ -3189,8 +3215,8 @@ function processAuditAppendixV2_(){
   if(!lock.tryLock(1000)) return;
   try{
     const roots=[];
-    try { roots.push(getUploadRootV2_('SCRIPT_ACCOUNT')); } catch(e) {}
-    try { roots.push(getUploadRootV2_('SECOND_ACCOUNT')); } catch(e) {}
+    try { roots.push(getResultsReportFolder_('SCRIPT_ACCOUNT')); } catch(e) {}
+    try { roots.push(getResultsReportFolder_('SECOND_ACCOUNT')); } catch(e) {}
     roots.forEach(function(root){
       const folders=root.getFolders();
       while(folders.hasNext()){
@@ -3205,9 +3231,9 @@ function processAuditAppendixV2_(){
         if(!auditId) continue;
         const key='AUDIT_APPENDIX_V2_'+auditId;
         try{
-          PropertiesService.getScriptProperties().setProperty(key,JSON.stringify({status:'processing',stage:'pdf',current:0,total:0,auditId:auditId,reportName:data.reportName,reportUrl:data.reportUrl,reportPdfName:data.reportPdfName||'',reportPdfUrl:data.reportPdfUrl||'',reportXlsxName:data.reportXlsxName||'',reportXlsxUrl:data.reportXlsxUrl||'',auditFolderUrl:data.auditFolderUrl||'',updatedAt:new Date().toISOString()}));
+          PropertiesService.getScriptProperties().setProperty(key,JSON.stringify({status:'processing',stage:'pdf',current:0,total:0,auditId:auditId,reportName:data.reportName,reportUrl:data.reportUrl,reportXlsxName:data.reportXlsxName||'',reportXlsxUrl:data.reportXlsxUrl||'',draftName:data.draftName||'',draftUrl:data.draftUrl||'',auditFolderUrl:data.auditFolderUrl||'',updatedAt:new Date().toISOString()}));
           const result=createAuditApplicationPdfFromDriveV2_(payload,data.fileMap||{},data.uploadStamp||'',auditId);
-          PropertiesService.getScriptProperties().setProperty(key,JSON.stringify({status:'done',stage:'done',current:result.items,total:result.items,auditId:auditId,reportName:data.reportName,reportUrl:data.reportUrl,reportPdfName:data.reportPdfName||'',reportPdfUrl:data.reportPdfUrl||'',reportXlsxName:data.reportXlsxName||'',reportXlsxUrl:data.reportXlsxUrl||'',appendixPdfName:result.name,appendixPdfUrl:result.downloadUrl,auditFolderUrl:result.folderUrl||data.auditFolderUrl||'',packageName:result.packageName||'',packageUrl:result.packageUrl||'',uploadedPhotos:(Array.isArray(payload.expectedPhotos)?payload.expectedPhotos.length:0),updatedAt:new Date().toISOString()}));
+          PropertiesService.getScriptProperties().setProperty(key,JSON.stringify({status:'done',stage:'done',current:result.items,total:result.items,auditId:auditId,reportName:data.reportName,reportUrl:data.reportUrl,reportXlsxName:data.reportXlsxName||'',reportXlsxUrl:data.reportXlsxUrl||'',appendixPdfName:result.name,appendixPdfUrl:result.downloadUrl,auditFolderUrl:result.folderUrl||data.auditFolderUrl||'',packageName:result.packageName||'',packageUrl:result.packageUrl||'',uploadedPhotos:(Array.isArray(payload.expectedPhotos)?payload.expectedPhotos.length:0),updatedAt:new Date().toISOString()}));
           job.setTrashed(true);
         }catch(err){
           PropertiesService.getScriptProperties().setProperty(key,JSON.stringify({status:'error',stage:'pdf',auditId:auditId,reportName:data.reportName,reportUrl:data.reportUrl,error:String(err&&err.message?err.message:err),updatedAt:new Date().toISOString()}));
@@ -3365,16 +3391,12 @@ function createAuditApplicationPdfFromDriveV2_(payload,fileMap,uploadStamp,audit
   doc.saveAndClose();
 
   const source=DriveApp.getFileById(doc.getId());
-  const folder=getUploadSessionFolderV2_(auditId,objectName,auditDate,payload.storageMode);
+  const folder=getAuditFolderV3_(auditId,objectName,auditDate,payload.storageMode,payload.startedAt);
   const pdfName=docName+'.pdf';
   const pdfBlob=source.getAs(MimeType.PDF).setName(pdfName);
   const file=folder.createFile(pdfBlob);
 
-  const packageBlobs=[file.getBlob()];
-  const reportPdfFiles=folder.getFilesByName('Отчёт_по_аудиту_'+safeObjectName+'_'+auditDate+'_'+stamp+'.pdf');
-  if(reportPdfFiles.hasNext()) packageBlobs.unshift(reportPdfFiles.next().getBlob());
-  const packageName='Аудит_'+safeObjectName+'_'+auditDate+'_'+stamp+'.zip';
-  const packageFile=folder.createFile(Utilities.zip(packageBlobs,packageName));
+  const packageFile=null;
 
   try{source.setTrashed(true);}catch(e){}
 
@@ -3387,8 +3409,8 @@ function createAuditApplicationPdfFromDriveV2_(payload,fileMap,uploadStamp,audit
     negativeItems:0,
     photos:totalPhotos,
     folderUrl:folder.getUrl(),
-    packageName:packageFile.getName(),
-    packageUrl:makeDriveDownloadUrlV2_(packageFile.getId())
+    packageName:'',
+    packageUrl:''
   };
 }
 
@@ -3512,6 +3534,36 @@ function createAuditReportXlsxV2_(reportFile,objectName,auditDate,uploadStamp,au
     url: makeSpreadsheetXlsxDownloadUrlV2_(reportFile.getId()),
     downloadUrl: makeSpreadsheetXlsxDownloadUrlV2_(reportFile.getId())
   };
+}
+
+function createAuditReportXlsxFileV3_(reportFile,reportName,auditFolder){
+  const url=makeSpreadsheetXlsxDownloadUrlV2_(reportFile.getId());
+  const response=UrlFetchApp.fetch(url,{headers:{Authorization:'Bearer '+ScriptApp.getOAuthToken()},muteHttpExceptions:true});
+  const code=response.getResponseCode();
+  if(code<200 || code>=300) throw new Error('Не удалось сформировать Excel-файл. Код: '+code+' '+response.getContentText().slice(0,300));
+  const file=auditFolder.createFile(response.getBlob().setName(String(reportName||'Отчёт_по_аудиту')+'.xlsx'));
+  return {name:file.getName(),id:file.getId(),url:file.getUrl(),downloadUrl:makeDriveDownloadUrlV2_(file.getId())};
+}
+
+function createAuditDraftFileV3_(payload,fileMap,auditFolder,uploadStamp){
+  const safeObject=sanitizeFileName_(payload.objectName||'объект');
+  const safeDate=sanitizeFileName_(payload.auditDate||'без_даты');
+  const stamp=sanitizeFileName_(uploadStamp||Utilities.formatDate(new Date(),Session.getScriptTimeZone(),'yyyy-MM-dd_HH-mm-ss-SSS'));
+  const audit=JSON.parse(JSON.stringify(payload));
+  audit.savedAt=new Date().toISOString();
+  const photos=[];
+  (payload.sections||[]).forEach(function(section){
+    (section.questions||section.items||[]).forEach(function(item){
+      (item.photos||[]).forEach(function(photo){
+        const ref=fileMap[String(photo.photoId||'')];
+        photos.push({photoId:photo.photoId||'',sectionIndex:String(section.index||photo.sectionIndex||''),questionId:String(item.id||photo.questionId||''),name:photo.name||'photo.jpg',mimeType:photo.mimeType||'image/jpeg',order:photo.order||1,driveFileId:ref?ref.id:'',driveUrl:ref?ref.url:''});
+      });
+    });
+  });
+  const pack={format:'audit-pwa-draft-server',version:1,exportedAt:new Date().toISOString(),audit:audit,photos:photos};
+  const name='Черновик_формы_'+safeObject+'_'+safeDate+'_'+stamp+'.audit';
+  const file=auditFolder.createFile(name,JSON.stringify(pack,null,2),MimeType.PLAIN_TEXT);
+  return {name:file.getName(),id:file.getId(),url:file.getUrl(),downloadUrl:makeDriveDownloadUrlV2_(file.getId())};
 }
 
 function createAuditReportPdfV2_(reportFile,objectName,auditDate,uploadStamp,auditFolder){
