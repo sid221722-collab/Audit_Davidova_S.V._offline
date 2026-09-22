@@ -1158,7 +1158,7 @@ html, body, input, select, textarea {
 <style id="emergency-checklist-ui">
 .emergency-checklist-tools{margin-top:8px;padding:8px 10px;border:1px solid #c7cdd4;border-radius:9px;background:#f8f9fa}
 .emergency-checklist-button{width:100%;min-height:44px;height:auto;padding:8px 12px;border:2px solid #1769e0;background:#e8f0fe;color:#174ea6;display:flex;align-items:center;justify-content:center;gap:8px}
-.checklist-version-label{display:block;width:100%;margin:1px 0 0;font-size:10px;font-weight:700;line-height:1.1;color:#687078;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.checklist-version-label{margin-top:5px;font-size:11px;font-weight:700;color:#687078;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:720px){.emergency-checklist-tools{padding:7px}.emergency-checklist-button{font-size:13px;padding:7px 8px;min-height:42px}}
 </style>
 
@@ -1213,14 +1213,31 @@ html, body, input, select, textarea {
   border-radius: 10px !important;
 }
 
+.header-tools-v2 .emergency-checklist-button {
+  flex-direction: column !important;
+  line-height: 1.05 !important;
+  gap: 1px !important;
+}
+
+.header-tools-v2 .emergency-checklist-button .draft-icon {
+  line-height: 1 !important;
+}
+
+.header-tools-v2 .emergency-checklist-button .draft-button-text {
+  line-height: 1.05 !important;
+}
+
 .header-tools-v2 .checklist-version-label {
   position: static !important;
+  display: block !important;
   width: 100% !important;
-  margin: 1px 0 0 !important;
+  margin: 0 !important;
   padding: 0 4px !important;
   box-sizing: border-box !important;
-  font-size: 10px !important;
-  line-height: 1.1 !important;
+  font-size: 9px !important;
+  line-height: 1.05 !important;
+  font-weight: 700 !important;
+  color: #687078 !important;
   text-align: center !important;
   white-space: nowrap !important;
   overflow: hidden !important;
@@ -1235,11 +1252,11 @@ html, body, input, select, textarea {
 }
 
 .header-panel-toggle {
-  font-size: 17px !important;
+  font-size: 14px !important;
 }
 
 @media (max-width: 720px) {
-  .header-panel-toggle { font-size: 20px !important; }
+  .header-panel-toggle { font-size: 14px !important; }
 }
 </style>
 
