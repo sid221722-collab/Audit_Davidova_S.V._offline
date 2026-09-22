@@ -1161,6 +1161,82 @@ html, body, input, select, textarea {
 .checklist-version-label{margin-top:5px;font-size:11px;font-weight:700;color:#687078;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:720px){.emergency-checklist-tools{padding:7px}.emergency-checklist-button{font-size:13px;padding:7px 8px;min-height:42px}}
 </style>
+
+<style id="ui-button-layout-stage18">
+/* Этап 18: компоновка верхних кнопок без изменения JS.
+   4 колонки: зона заголовка/аккаунта + три равные зоны кнопок. */
+.header-tools-v2 {
+  grid-template-columns: 320px repeat(3, minmax(0, 1fr)) !important;
+  grid-template-rows: 86px 62px !important;
+  column-gap: 10px !important;
+  row-gap: 8px !important;
+}
+
+.header-tools-v2 > .header-title {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+}
+
+.header-tools-v2 .draft-buttons-top {
+  grid-column: 2 / span 3 !important;
+  grid-row: 1 !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+.header-tools-v2 .storage-choice {
+  grid-column: 1 !important;
+  grid-row: 2 !important;
+}
+
+.header-tools-v2 .emergency-checklist-tools {
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  min-width: 0 !important;
+  min-height: 62px !important;
+  height: 62px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+}
+
+.header-tools-v2 .emergency-checklist-button {
+  width: 100% !important;
+  height: 62px !important;
+  min-height: 62px !important;
+  padding: 5px 6px !important;
+  box-sizing: border-box !important;
+  border-radius: 10px !important;
+}
+
+.header-tools-v2 .checklist-version-label {
+  position: absolute !important;
+  left: 0 !important;
+  top: 64px !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+.header-tools-v2 .draft-new-wide {
+  grid-column: 3 / span 2 !important;
+  grid-row: 2 !important;
+  height: 62px !important;
+  min-height: 62px !important;
+}
+
+.header-panel-toggle {
+  font-size: 17px !important;
+}
+
+@media (max-width: 720px) {
+  .header-panel-toggle { font-size: 20px !important; }
+}
+</style>
+
 </head>
 
 
@@ -4728,8 +4804,14 @@ if ('serviceWorker' in navigator) {
     return id;
   }
 
+  const V2_STARTED_KEY = 'audit_v2_started_at_v1';
+
   function v2SetActive(auditId) {
     try { localStorage.setItem(V2_ACTIVE_KEY, auditId || ''); } catch(e) {}
+  }
+
+  function v2GetStartedAt() {
+    try { return localStorage.getItem(V2_STARTED_KEY) || ''; } catch(e) { return ''; }
   }
 
   function v2SafePart(value) {
@@ -4826,12 +4908,14 @@ if ('serviceWorker' in navigator) {
     return {
       schema: V2_SCHEMA,
       auditId: auditId,
+      startedAt: v2GetStartedAt(),
       folderName: v2FolderName(objectName, auditDate),
       objectName: String(objectName).trim(),
       auditDate: String(auditDate).trim(),
       storageMode: storageMode,
       savedAt: new Date().toISOString(),
       appData: APP_DATA || null,
+      checkerName: String((window.AUDIT_PWA_CONFIG && window.AUDIT_PWA_CONFIG.CHECKER_NAME) || '').trim(),
       sections: sections
     };
   }
@@ -5058,7 +5142,10 @@ if ('serviceWorker' in navigator) {
     }
     const newId = v2MakeAuditId();
     v2SetActive(newId);
-    try { localStorage.removeItem(V2_META_KEY); } catch(e) {}
+    try {
+      localStorage.removeItem(V2_META_KEY);
+      localStorage.setItem(V2_STARTED_KEY, new Date().toISOString());
+    } catch(e) {}
     return newId;
   }
 
@@ -5361,6 +5448,9 @@ function v2LoadActiveAudit() {
       objectName: snapshot.objectName,
       auditDate: snapshot.auditDate,
       storageMode: snapshot.storageMode || 'SECOND_ACCOUNT',
+      startedAt: snapshot.startedAt || '',
+      finishedAt: new Date().toISOString(),
+      checkerName: snapshot.checkerName || '',
       expectedPhotos: v2CollectAllPhotoMeta(snapshot),
       appData: snapshot.appData || null,
       sections: snapshot.sections
@@ -5401,6 +5491,7 @@ function v2LoadActiveAudit() {
               auditId:snapshot.auditId,
               objectName:snapshot.objectName,
               auditDate:snapshot.auditDate,
+              startedAt:snapshot.startedAt || '',
               photoId:meta.photoId,
               sectionIndex:meta.sectionIndex,
               questionId:meta.questionId,
@@ -5492,7 +5583,7 @@ function v2LoadActiveAudit() {
         }
         var lastErr=null,ok=false;
         for(var attempt=1;attempt<=3 && !ok;attempt++){
-          try{await v28Post(url,{action:'uploadPhotoBatch',version:V28_UPLOAD_VERSION,auditId:snapshot.auditId,objectName:snapshot.objectName,auditDate:snapshot.auditDate,storageMode:snapshot.storageMode||'SECOND_ACCOUNT',photos:photos});ok=true;}
+          try{await v28Post(url,{action:'uploadPhotoBatch',version:V28_UPLOAD_VERSION,auditId:snapshot.auditId,objectName:snapshot.objectName,auditDate:snapshot.auditDate,storageMode:snapshot.storageMode||'SECOND_ACCOUNT',startedAt:snapshot.startedAt||'',photos:photos});ok=true;}
           catch(e){lastErr=e;await new Promise(function(r){setTimeout(r,800*attempt);});}
         }
         if(!ok)throw lastErr||new Error('Не удалось выгрузить пакет фотографий '+(start+1)+'–'+Math.min(start+V28_BATCH_SIZE,total)+'.');
@@ -5501,7 +5592,7 @@ function v2LoadActiveAudit() {
         await new Promise(function(r){setTimeout(r,120);});
       }
       showLoading(true,total?'Сохранение проверки...\nШАГ 2 из 3 — фотографии загружены: '+total+' / '+total+'. Формируем отчёт...':'Сохранение проверки...\nШАГ 2 из 3 — формируем отчёт...');
-      var payload={action:'uploadFinalize',version:V28_UPLOAD_VERSION,auditId:snapshot.auditId,objectName:snapshot.objectName,auditDate:snapshot.auditDate,storageMode:snapshot.storageMode||'SECOND_ACCOUNT',appData:snapshot.appData||null,expectedPhotos:metas,sections:snapshot.sections};
+      var payload={action:'uploadFinalize',version:V28_UPLOAD_VERSION,auditId:snapshot.auditId,objectName:snapshot.objectName,auditDate:snapshot.auditDate,storageMode:snapshot.storageMode||'SECOND_ACCOUNT',startedAt:snapshot.startedAt||'',finishedAt:new Date().toISOString(),checkerName:snapshot.checkerName||'',appData:snapshot.appData||null,expectedPhotos:metas,sections:snapshot.sections};
       var form=document.createElement('form');form.method='POST';form.action=url;form.target='_self';form.style.display='none';
       var input=document.createElement('textarea');input.name='payload';input.value=JSON.stringify(payload);form.appendChild(input);document.body.appendChild(form);form.submit();
     }catch(error){showLoading(false);if(button)button.disabled=false;alert('Ошибка выгрузки:\n\n'+getErrorMessage(error)+'\n\nАудит и фотографии остались сохранены на устройстве.');}
