@@ -5296,8 +5296,38 @@ function v2LoadActiveAudit() {
   // ============================================================
   // Восстановление: последовательно, без Promise.all на все фото.
   // ============================================================
+  function draftChecklistSignature(data) {
+    try {
+      return JSON.stringify((data && data.sections || []).map(function(section) {
+        return {
+          name: String(section.name || ''),
+          items: (section.items || []).map(function(item) {
+            return {
+              id: String(item.id || ''),
+              point: String(item.point || '')
+            };
+          })
+        };
+      }));
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function ensureDraftChecklistLoaded(draft) {
+    if (!draft || !draft.appData || !Array.isArray(draft.appData.sections) || !draft.appData.sections.length) return;
+    const currentSignature = draftChecklistSignature(APP_DATA);
+    const draftSignature = draftChecklistSignature(draft.appData);
+    if (draftSignature && draftSignature !== currentSignature) {
+      // Черновик всегда восстанавливается на том чек-листе, на котором он был создан.
+      // Это предотвращает подстановку ответов по одинаковым Q1/Q2... из другого чек-листа.
+      renderApp(draft.appData);
+    }
+  }
+
   window.applyDraftCommon = function(draft) {
     if (!draft || window.draftRestoreInProgress) return;
+    ensureDraftChecklistLoaded(draft);
     const generation = ++v2RestoreGeneration;
     window.draftRestoreInProgress = true;
     v2SetActive(draft.auditId || v2GetAuditId());
