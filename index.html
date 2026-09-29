@@ -5070,131 +5070,6 @@ if ('serviceWorker' in navigator) {
     });
   }
 
-
-  /*
-   * Нормализация импортированного .audit-файла.
-   *
-   * В старых/совместимых черновиках фотографии могут находиться
-   * в верхнеуровневом массиве pack.photos, тогда как
-   * draft.sections[].questions[].photos пусты.
-   *
-   * При загрузке восстанавливаем связь по questionId (и, при
-   * необходимости, sectionIndex), чтобы applyDraftCommon()
-   * увидел фотографии и восстановил их из IndexedDB.
-   *
-   * Это не копирует base64 в вопросы: в вопрос записываются
-   * только компактные метаданные photoId/name/mimeType/order.
-   */
-  function normalizeImportedAuditPhotoLinks(draft, importedPhotos) {
-    if (!draft || !Array.isArray(draft.sections)) return draft;
-
-    const photos = Array.isArray(importedPhotos) ? importedPhotos : [];
-    if (!photos.length) return draft;
-
-    const questionMap = {};
-    const sectionMap = {};
-
-    (draft.sections || []).forEach(function(section) {
-      const sectionIndex = String(section.index || '');
-      sectionMap[sectionIndex] = section;
-
-      (section.questions || []).forEach(function(question) {
-        const qid = String(question.id || '');
-        if (!qid) return;
-
-        questionMap[qid] = {
-          question: question,
-          section: section
-        };
-
-        if (!Array.isArray(question.photos)) {
-          question.photos = [];
-        }
-      });
-    });
-
-    /*
-     * Сохраняем уже существующие photoId, чтобы повторный импорт
-     * или смешанный формат не создавал дубликаты.
-     */
-    const known = {};
-    (draft.sections || []).forEach(function(section) {
-      (section.questions || []).forEach(function(question) {
-        (question.photos || []).forEach(function(photo) {
-          if (photo && photo.photoId) {
-            known[String(photo.photoId)] = true;
-          }
-        });
-      });
-    });
-
-    photos.forEach(function(photo) {
-      if (!photo || !photo.photoId) return;
-
-      const photoId = String(photo.photoId);
-      if (known[photoId]) return;
-
-      const questionId = String(photo.questionId || '');
-      const sectionIndex = String(photo.sectionIndex || '');
-
-      let target = questionMap[questionId];
-
-      /*
-       * Если questionId отсутствует/не найден, пробуем найти вопрос
-       * внутри указанного раздела. Это делает импорт устойчивым
-       * к старым черновикам с неполными идентификаторами.
-       */
-      if (!target && sectionMap[sectionIndex]) {
-        const candidates = sectionMap[sectionIndex].questions || [];
-        if (candidates.length === 1) {
-          target = {
-            question: candidates[0],
-            section: sectionMap[sectionIndex]
-          };
-        }
-      }
-
-      if (!target) {
-        console.warn(
-          'Не найден вопрос для фотографии:',
-          photoId,
-          'questionId=', questionId,
-          'sectionIndex=', sectionIndex
-        );
-        return;
-      }
-
-      if (!Array.isArray(target.question.photos)) {
-        target.question.photos = [];
-      }
-
-      target.question.photos.push({
-        photoId: photoId,
-        name: photo.name || 'photo.jpg',
-        mimeType: photo.mimeType || 'image/jpeg',
-        sectionIndex: sectionIndex || String(target.section.index || ''),
-        questionId: questionId || String(target.question.id || ''),
-        order: Number(photo.order || (target.question.photos.length + 1))
-      });
-
-      known[photoId] = true;
-    });
-
-    /*
-     * Нормализуем порядок внутри каждого вопроса.
-     */
-    (draft.sections || []).forEach(function(section) {
-      (section.questions || []).forEach(function(question) {
-        if (!Array.isArray(question.photos)) return;
-        question.photos.sort(function(a, b) {
-          return Number(a.order || 0) - Number(b.order || 0);
-        });
-      });
-    });
-
-    return draft;
-  }
-
   async function importAuditFile(file) {
     if (!file) return;
     const input = document.getElementById('importAuditFileInput');
@@ -5208,13 +5083,59 @@ if ('serviceWorker' in navigator) {
         throw new Error('В файле отсутствуют данные аудита.');
       }
       const photos = Array.isArray(pack.photos) ? pack.photos : [];
-      normalizeImportedAuditPhotoLinks(draft, photos);
+
+      // В старых .audit-файлах фотографии лежат только в pack.photos,
+      // а в вопросах savedQuestion.photos[] может отсутствовать.
+      // Перед сохранением/восстановлением нормализуем структуру:
+      // добавляем в соответствующий вопрос только метаданные фото.
+      // Сам Blob по-прежнему хранится отдельно в IndexedDB.
+      const questionsById = {};
+      (draft.sections || []).forEach(function(section) {
+        (section.questions || []).forEach(function(question) {
+          const qid = String(question.id || '');
+          if (qid) {
+            questionsById[qid] = question;
+            if (!Array.isArray(question.photos)) question.photos = [];
+          }
+        });
+      });
+
+      photos.forEach(function(p) {
+        if (!p || !p.photoId || !p.questionId) return;
+        const question = questionsById[String(p.questionId)];
+        if (!question) return;
+        const exists = question.photos.some(function(meta) {
+          return meta && String(meta.photoId || '') === String(p.photoId);
+        });
+        if (!exists) {
+          question.photos.push({
+            photoId: String(p.photoId),
+            sectionIndex: String(p.sectionIndex || ''),
+            questionId: String(p.questionId || ''),
+            name: p.name || 'photo.jpg',
+            mimeType: p.mimeType || 'image/jpeg',
+            order: Number(p.order || question.photos.length + 1)
+          });
+        }
+      });
+
+      // Стабильный порядок фотографий в каждом вопросе.
+      (draft.sections || []).forEach(function(section) {
+        (section.questions || []).forEach(function(question) {
+          if (Array.isArray(question.photos)) {
+            question.photos.sort(function(a,b) {
+              return Number(a.order || 0) - Number(b.order || 0);
+            });
+          }
+        });
+      });
+
       const current = await v2LoadActiveAudit();
       if (current && current.exists && current.draft && current.draft.auditId !== draft.auditId) {
         if (!confirm('Загрузить этот черновик?\n\nТекущий аудит на этом устройстве останется сохранённым, а загруженный станет активным.')) return;
         try { localStorage.setItem(V2_PREVIOUS_KEY, current.draft.auditId); } catch (e) {}
       }
-      showLoading(true, 'Загрузка черновика...\nСохраняем данные и восстанавливаем связи фотографий');
+      showLoading(true, 'Загрузка черновика...\nСохраняем данные и фотографии');
       v2SetActive(draft.auditId);
       if (!draft.appData && APP_DATA) draft.appData = APP_DATA;
       await v2Put(V2_AUDIT_STORE, draft.auditId, draft);
